@@ -91,12 +91,16 @@ sys_uptime(void)
 }
 
 
-int
-sys_simp_arith(void)
-{
-  int a, b;
-  if (argint(0, &a) < 0) return -1;
-  if (argint(1, &b) < 0) return -1;
+int sys_simp_arith(void) {
+  
+  struct trapframe *tf = myproc()->tf; 
+  
+  int a = tf->ebx;
+  int b = tf->ecx;
+  
+  cprintf("First  arg a (from EBX): %d\n", a);
+  cprintf("Second arg b (from ECX): %d\n", b);
+  
   return simp_arith(a, b);
 }
 

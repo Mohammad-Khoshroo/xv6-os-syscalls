@@ -8,6 +8,22 @@
     int $T_SYSCALL; \
     ret
 
+.globl simp_arith
+simp_arith:
+  pushl %ebp
+  movl %esp, %ebp
+  
+  movl 8(%ebp), %ebx    # a
+  movl 12(%ebp), %ecx   # b
+  
+  movl $SYS_simp_arith, %eax
+  
+  int $T_SYSCALL
+  
+  movl %ebp, %esp
+  popl %ebp
+  ret
+
 SYSCALL(fork)
 SYSCALL(exit)
 SYSCALL(wait)
@@ -29,7 +45,6 @@ SYSCALL(getpid)
 SYSCALL(sbrk)
 SYSCALL(sleep)
 SYSCALL(uptime)
-SYSCALL(simp_arith)
 SYSCALL(grep_sys)
 SYSCALL(show_process_family)
 SYSCALL(make_duplicate)
