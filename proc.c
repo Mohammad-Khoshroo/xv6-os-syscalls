@@ -532,3 +532,25 @@ procdump(void)
     cprintf("\n");
   }
 }
+
+
+
+int simp_arith(int a, int b) {
+    return 0;
+}
+
+int make_duplicate(const char* src_fill) {
+    return 0;
+}
+
+int show_process_family(int pid) {
+    return 0;
+}
+
+int grep_sys(const char* keyword, const char* filename, char* user_buffer, int buffer_size) {
+    return 0;
+}
+
+int set_priority(int pid, int priority) {
+    return 0;
+}

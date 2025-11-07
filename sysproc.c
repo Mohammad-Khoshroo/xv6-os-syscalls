@@ -31,7 +31,7 @@ sys_kill(void)
 {
   int pid;
 
-  if(argint(0, &pid) < 0)
+  if (argint(0, &pid) < 0)
     return -1;
   return kill(pid);
 }
@@ -48,10 +48,10 @@ sys_sbrk(void)
   int addr;
   int n;
 
-  if(argint(0, &n) < 0)
+  if (argint(0, &n) < 0)
     return -1;
   addr = myproc()->sz;
-  if(growproc(n) < 0)
+  if (growproc(n) < 0)
     return -1;
   return addr;
 }
@@ -62,12 +62,12 @@ sys_sleep(void)
   int n;
   uint ticks0;
 
-  if(argint(0, &n) < 0)
+  if (argint(0, &n) < 0)
     return -1;
   acquire(&tickslock);
   ticks0 = ticks;
-  while(ticks - ticks0 < n){
-    if(myproc()->killed){
+  while (ticks - ticks0 < n) {
+    if (myproc()->killed) {
       release(&tickslock);
       return -1;
     }
@@ -88,4 +88,55 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
+}
+
+
+int
+sys_simp_arith(void)
+{
+  int a, b;
+  if (argint(0, &a) < 0) return -1;
+  if (argint(1, &b) < 0) return -1;
+  return simp_arith(a, b);
+}
+
+int
+sys_make_duplicate(void)
+{
+  char* src;
+  if (argstr(0, &src) < 0) return -1;
+  return make_duplicate(src);
+}
+
+int
+sys_show_process_family(void)
+{
+  int pid;
+  if (argint(0, &pid) < 0) return -1;
+  return show_process_family(pid);
+}
+
+int
+sys_grep_sys(void)
+{
+  char* keyword; 
+  char* filename;
+  char* user_buf;
+  int buf_size;
+
+  if (argstr(0, &keyword) < 0) return -1;
+  if (argstr(1, &filename) < 0) return -1;
+  if (argptr(2, &user_buf, sizeof(char*)) < 0) return -1;
+  if (argint(3, &buf_size) < 0) return -1;
+
+  return grep_sys(keyword, filename, user_buf, buf_size);
+}
+
+int
+sys_set_priority(void)
+{
+  int pid, priority;
+  if (argint(0, &pid) < 0) return -1;
+  if (argint(1, &priority) < 0) return -1;
+  return set_priority(pid, priority);
 }
