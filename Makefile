@@ -187,7 +187,7 @@ UPROGS=\
 	_test_make_duplicate\
 	_test_show_process_family\
 	_hello\
-	
+	_test_gdb\
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)
@@ -261,10 +261,12 @@ EXTRA=\
 	test_simp_arith.c\
 	test_grep.c\
 	test_set_priority.c\
+	test_gdb.c\
 	test_make_duplicate.c\
 	test_show_process_family.c\
 	README dot-bochsrc *.pl toc.* runoff runoff1 runoff.list\
 	.gdbinit.tmpl gdbutil\
+	
 
 dist:
 	rm -rf dist
