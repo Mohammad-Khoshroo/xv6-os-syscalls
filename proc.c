@@ -333,24 +333,18 @@ scheduler(void)
   c->proc = 0;
 
   for (;;) {
-    // Enable interrupts on this processor.
     sti();
-
     acquire(&ptable.lock);
     struct proc* p;
     struct proc* best = 0;
-
-    // find the runnable process with best (lowest) priority
     for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
       if (p->state != RUNNABLE)
         continue;
       if (best == 0 || p->priority < best->priority)
         best = p;
     }
-
     if (best) {
       p = best;
-      // switch to chosen process
       c->proc = p;
       switchuvm(p);
       p->state = RUNNING;
@@ -358,7 +352,6 @@ scheduler(void)
       switchkvm();
       c->proc = 0;
     }
-
     release(&ptable.lock);
   }
 
