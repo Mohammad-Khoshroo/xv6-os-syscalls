@@ -112,6 +112,8 @@ found:
   memset(p->context, 0, sizeof * p->context);
   p->context->eip = (uint)forkret;
 
+  p->priority = 1;
+
   return p;
 }
 
@@ -185,6 +187,7 @@ fork(void)
   struct proc* np;
   struct proc* curproc = myproc();
 
+
   // Allocate process.
   if ((np = allocproc()) == 0) {
     return -1;
@@ -214,6 +217,8 @@ fork(void)
   pid = np->pid;
 
   acquire(&ptable.lock);
+
+  np->priority = curproc->priority;
 
   np->state = RUNNABLE;
 
@@ -331,29 +336,32 @@ scheduler(void)
     // Enable interrupts on this processor.
     sti();
 
-    // Loop over process table looking for process to run.
     acquire(&ptable.lock);
+    struct proc* p;
+    struct proc* best = 0;
+
+    // find the runnable process with best (lowest) priority
     for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
       if (p->state != RUNNABLE)
         continue;
+      if (best == 0 || p->priority < best->priority)
+        best = p;
+    }
 
-      // Switch to chosen process.  It is the process's job
-      // to release ptable.lock and then reacquire it
-      // before jumping back to us.
+    if (best) {
+      p = best;
+      // switch to chosen process
       c->proc = p;
       switchuvm(p);
       p->state = RUNNING;
-
-      swtch(&(c->scheduler), p->context);
+      swtch(&c->scheduler, p->context);
       switchkvm();
-
-      // Process is done running for now.
-      // It should have changed its p->state before coming back.
       c->proc = 0;
     }
-    release(&ptable.lock);
 
+    release(&ptable.lock);
   }
+
 }
 
 // Enter scheduler.  Must hold only ptable.lock
@@ -544,48 +552,60 @@ int simp_arith(int a, int b) {
 int
 show_process_family(int pid)
 {
-  struct proc *p, *me = 0;
+  struct proc* p, * me = 0;
 
   acquire(&ptable.lock);
-  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-    if(p->state != UNUSED && p->pid == pid){
+  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+    if (p->state != UNUSED && p->pid == pid) {
       me = p;
       break;
     }
   }
-  if(me == 0){
+  if (me == 0) {
     release(&ptable.lock);
-    return -1; 
+    return -1;
   }
   cprintf("My id: %d, My parent id: %d\n", me->pid, me->parent ? me->parent->pid : -1);
   int any = 0;
   cprintf("Children of process %d:\n", me->pid);
-  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-    if(p->state != UNUSED && p->parent == me){
+  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+    if (p->state != UNUSED && p->parent == me) {
       cprintf("Child pid: %d\n", p->pid);
       any = 1;
     }
   }
-  if(!any) cprintf("No children.\n");
+  if (!any) cprintf("No children.\n");
   any = 0;
   cprintf("Siblings of process %d:\n", me->pid);
-  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-    if(p->state != UNUSED && p != me && me->parent && p->parent == me->parent){
+  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+    if (p->state != UNUSED && p != me && me->parent && p->parent == me->parent) {
       cprintf("Sibling pid: %d\n", p->pid);
       any = 1;
     }
   }
-  if(!any) cprintf("No siblings.\n");
+  if (!any) cprintf("No siblings.\n");
 
   release(&ptable.lock);
   return 0;
 }
 
 
-int grep_sys(const char* keyword, const char* filename, char* user_buffer, int buffer_size) {
-  return 0;
-}
+int
+set_priority(int pid, int priority)
+{
+  struct proc* p;
 
-int set_priority(int pid, int priority) {
-  return 0;
+  if (priority < 0 || priority > 2)
+    return -1;
+
+  acquire(&ptable.lock);
+  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+    if (p->pid == pid) {
+      p->priority = priority;
+      release(&ptable.lock);
+      return 0;
+    }
+  }
+  release(&ptable.lock);
+  return -1;
 }
