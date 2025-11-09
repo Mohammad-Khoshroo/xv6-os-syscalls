@@ -535,20 +535,52 @@ procdump(void)
 }
 
 
-
 int simp_arith(int a, int b) {
   int res = (a + b) * (a - b);
   cprintf("result (a + b) * (a - b) is : %d\n", res);
   return res;
 }
 
-int make_duplicate(const char* src_fill) {
+int
+show_process_family(int pid)
+{
+  struct proc *p, *me = 0;
+
+  acquire(&ptable.lock);
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->state != UNUSED && p->pid == pid){
+      me = p;
+      break;
+    }
+  }
+  if(me == 0){
+    release(&ptable.lock);
+    return -1; 
+  }
+  cprintf("My id: %d, My parent id: %d\n", me->pid, me->parent ? me->parent->pid : -1);
+  int any = 0;
+  cprintf("Children of process %d:\n", me->pid);
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->state != UNUSED && p->parent == me){
+      cprintf("Child pid: %d\n", p->pid);
+      any = 1;
+    }
+  }
+  if(!any) cprintf("No children.\n");
+  any = 0;
+  cprintf("Siblings of process %d:\n", me->pid);
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->state != UNUSED && p != me && me->parent && p->parent == me->parent){
+      cprintf("Sibling pid: %d\n", p->pid);
+      any = 1;
+    }
+  }
+  if(!any) cprintf("No siblings.\n");
+
+  release(&ptable.lock);
   return 0;
 }
 
-int show_process_family(int pid) {
-  return 0;
-}
 
 int grep_sys(const char* keyword, const char* filename, char* user_buffer, int buffer_size) {
   return 0;

@@ -16,6 +16,7 @@
 #include "file.h"
 #include "fcntl.h"
 
+
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.
 static int
@@ -441,4 +442,84 @@ sys_pipe(void)
   fd[0] = fd0;
   fd[1] = fd1;
   return 0;
+}
+
+static int
+inode_copy(struct inode *src, struct inode *dst)
+{
+  char buf[512];
+  uint off = 0;
+  ilock(src);
+  while(off < src->size){
+    int toread = sizeof(buf);
+    if(src->size - off < toread)
+      toread = src->size - off;
+    if(readi(src, buf, off, toread) != toread){
+      iunlock(src);
+      return 1;
+    }
+    if(writei(dst, buf, off, toread) != toread){
+      iunlock(src);
+      return 1;
+    }
+    off += toread;
+  }
+  iunlock(src);
+  return 0;
+}
+
+static int
+build_dst_path(char *dst, const char *src)
+{
+  int n = strlen(src);
+  if(n + 5 >= MAXPATH)  
+    return -1;
+
+  safestrcpy(dst, src, MAXPATH);
+  safestrcpy(dst + n, "_copy", MAXPATH - n);
+  return 0;
+}
+
+int
+sys_make_duplicate(void)
+{
+  char *src_path;
+  char dst_path[MAXPATH];
+  if(argstr(0, &src_path) < 0)
+    return 1;
+  if(build_dst_path(dst_path, src_path) < 0)
+    return 1;
+  begin_op();
+  struct inode *src = namei(src_path);
+  if(src == 0){
+    end_op();
+    return -1;
+  }
+  ilock(src);
+  if(src->type != T_FILE){
+    iunlock(src);
+    iput(src);     
+    end_op();
+    return 1;
+  }
+  iunlock(src);
+  struct inode *exist = namei(dst_path);
+  if(exist){
+    iput(exist);   
+    iput(src);     
+    end_op();
+    return 1;
+  }
+  extern struct inode* create(char *path, short type, short major, short minor);
+  struct inode *dst = create(dst_path, T_FILE, 0, 0);
+  if(dst == 0){
+    iput(src);     
+    end_op();
+    return 1;
+  }
+  int rc = inode_copy(src, dst);
+  iunlockput(dst); 
+  iput(src);     
+  end_op();
+  return rc ? 1 : 0;
 }

@@ -104,13 +104,6 @@ int sys_simp_arith(void) {
   return simp_arith(a, b);
 }
 
-int
-sys_make_duplicate(void)
-{
-  char* src;
-  if (argstr(0, &src) < 0) return -1;
-  return make_duplicate(src);
-}
 
 int
 sys_show_process_family(void)

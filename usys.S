@@ -12,14 +12,10 @@
 simp_arith:
   pushl %ebp
   movl %esp, %ebp
-  
   movl 8(%ebp), %ebx    # a
   movl 12(%ebp), %ecx   # b
-  
   movl $SYS_simp_arith, %eax
-  
   int $T_SYSCALL
-  
   movl %ebp, %esp
   popl %ebp
   ret
