@@ -114,22 +114,6 @@ sys_show_process_family(void)
 }
 
 int
-sys_grep_sys(void)
-{
-  char* keyword; 
-  char* filename;
-  char* user_buf;
-  int buf_size;
-
-  if (argstr(0, &keyword) < 0) return -1;
-  if (argstr(1, &filename) < 0) return -1;
-  if (argptr(2, &user_buf, sizeof(char*)) < 0) return -1;
-  if (argint(3, &buf_size) < 0) return -1;
-
-  return grep_sys(keyword, filename, user_buf, buf_size);
-}
-
-int
 sys_set_priority(void)
 {
   int pid, priority;

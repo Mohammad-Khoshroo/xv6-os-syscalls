@@ -523,3 +523,120 @@ sys_make_duplicate(void)
   end_op();
   return rc ? 1 : 0;
 }
+
+static int k_strstr(const char *hay, int hlen, const char *needle) {
+  int nlen = 0;
+  while (needle[nlen]) nlen++;
+  if (nlen == 0) return 0;
+  for (int i = 0; i + nlen <= hlen; i++) {
+    int ok = 1;
+    for (int j = 0; j < nlen; j++) {
+      if (hay[i+j] != needle[j]) { ok = 0; break; }
+    }
+    if (ok) return i;
+  }
+  return -1;
+}
+
+// simple substring search (no libc). returns start index or -1.
+static int in_line(const char *hay, int hlen, const char *needle, int nlen) {
+  if (nlen == 0) return 0;
+  for (int i = 0; i + nlen <= hlen; i++) {
+    int ok = 1;
+    for (int j = 0; j < nlen; j++) {
+      if (hay[i + j] != needle[j]) { ok = 0; break; }
+    }
+    if (ok) return i;
+  }
+  return -1;
+}
+
+
+int
+sys_grep_syscall(void)
+{
+  char *keyword;
+  char *filename;
+  char *ubuf;
+  int bufsize;
+
+  if (argstr(0, &keyword)  < 0) return -1;
+  if (argstr(1, &filename) < 0) return -1;
+  if (argint(3, &bufsize)  < 0 || bufsize <= 1) return -1;
+  if (argptr(2, &ubuf, bufsize) < 0) return -1;
+
+  int klen = 0;
+  while (keyword[klen]) klen++;
+
+  begin_op();
+  struct inode *ip = namei(filename);
+  if (ip == 0) {
+    end_op();
+    return -1;
+  }
+  ilock(ip);
+
+  // allocate a page-sized temp buffer for block reads
+  char *kbuf = kalloc();
+  if (kbuf == 0) {
+    iunlockput(ip);
+    end_op();
+    return -1;
+  }
+
+  // build lines and search
+  char line[512];
+  int  llen = 0;
+  int  off  = 0;
+  int  found = 0;
+  int  retlen = -1;
+
+  while (off < ip->size) {
+    int n = readi(ip, kbuf, off, PGSIZE);
+    if (n <= 0) break;
+    off += n;
+
+    for (int i = 0; i < n; i++) {
+      char c = kbuf[i];
+
+      if (c == '\n' || llen == (int)sizeof(line) - 1) {
+        if (in_line(line, llen, keyword, klen) >= 0) {
+          int tocpy = (llen < bufsize - 1) ? llen : (bufsize - 1);
+          if (copyout(myproc()->pgdir, (uint)ubuf, line, tocpy) < 0) {
+            kfree(kbuf); iunlockput(ip); end_op(); return -1;
+          }
+          char nul = 0;
+          copyout(myproc()->pgdir, (uint)(ubuf + tocpy), &nul, 1);
+          cprintf("Matched line length: %d\n", llen);
+          found = 1; retlen = tocpy;
+          goto done;
+        }
+        // reset for next line
+        llen = 0;
+      } else {
+        line[llen++] = c;
+      }
+    }
+  }
+
+  // handle last line if file doesn't end with '\n'
+  if (!found && llen > 0) {
+    if (in_line(line, llen, keyword, klen) >= 0) {
+      int tocpy = (llen < bufsize - 1) ? llen : (bufsize - 1);
+      if (copyout(myproc()->pgdir, (uint)ubuf, line, tocpy) < 0) {
+        kfree(kbuf); iunlockput(ip); end_op(); return -1;
+      }
+      char nul = 0;
+      copyout(myproc()->pgdir, (uint)(ubuf + tocpy), &nul, 1);
+      cprintf("Matched line length: %d\n", llen);
+      found = 1; retlen = tocpy;
+    }
+  }
+
+
+done:
+  kfree(kbuf);
+  iunlockput(ip);
+  end_op();
+  return found ? retlen : -1;
+}
